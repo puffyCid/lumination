@@ -26,7 +26,9 @@ pub enum NetworkState {
     CloseWait,
     LastAck,
     Closing,
+    DeleteTcb,
     Unknown,
+    None,
 }
 
 #[derive(Debug, Clone)]
