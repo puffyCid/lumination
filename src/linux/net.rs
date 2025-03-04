@@ -52,7 +52,7 @@ pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
                     state: conn.state.clone(),
                     pid: proc.pid,
                     process_name: proc.name.clone(),
-                    process_path: proc.path.clone(),
+                    //process_path: proc.path.clone(),
                 };
                 conns.push(connect);
             }
@@ -109,9 +109,9 @@ fn read_net(path: &str) -> nom::IResult<&str, Vec<NetState>> {
 #[derive(Debug)]
 pub(crate) struct NetState {
     local_address: String,
-    local_port: u32,
+    local_port: u16,
     remote_address: String,
-    remote_port: u32,
+    remote_port: u16,
     state: NetworkState,
     inode: u64,
     _uid: u64,
@@ -179,9 +179,9 @@ fn parse_net<'a>(line: &'a str, protocol: &Protocol) -> nom::IResult<&'a str, Ne
 
     let tcp_state = NetState {
         local_address,
-        local_port: u32::from_str_radix(local_port, 16).unwrap_or_default(),
+        local_port: u16::from_str_radix(local_port, 16).unwrap_or_default(),
         remote_address,
-        remote_port: u32::from_str_radix(remote_port, 16).unwrap_or_default(),
+        remote_port: u16::from_str_radix(remote_port, 16).unwrap_or_default(),
         state: get_state(state_value),
         inode: inode.parse::<u64>().unwrap_or_default(),
         _uid: uid.parse::<u64>().unwrap_or_default(),

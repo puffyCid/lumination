@@ -1,16 +1,16 @@
-use crate::{error::LuminationError, linux::net::list_tcp_udp};
+use crate::{error::LuminationError, linux::net::list_tcp_udp, windows::net::list_tcp_udp_windows};
 
 #[derive(Debug, Clone)]
 pub struct ConnectState {
     pub protocol: Protocol,
     pub local_address: String,
-    pub local_port: u32,
+    pub local_port: u16,
     pub remote_address: String,
-    pub remote_port: u32,
+    pub remote_port: u16,
     pub state: NetworkState,
     pub pid: u64,
     pub process_name: String,
-    pub process_path: String,
+    //pub process_path: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -41,11 +41,12 @@ pub enum Protocol {
 
 /// List current network connections on a system
 pub fn connections() -> Result<Vec<ConnectState>, LuminationError> {
-    println!("hmm where to start??");
     let mut connects = Vec::new();
 
     if cfg!(target_os = "linux") {
         connects = list_tcp_udp()?;
+    } else if cfg!(target_os = "windows") {
+        connects = list_tcp_udp_windows()?;
     }
 
     Ok(connects)

@@ -13,6 +13,8 @@ use windows::Win32::NetworkManagement::IpHelper::{
     MIB_UDPROW_OWNER_PID, MIB_UDPTABLE_OWNER_PID, TCP_TABLE_OWNER_PID_ALL, UDP_TABLE_OWNER_PID,
 };
 
+use super::proc::list_procs;
+
 /// List all TCP and UDP Windows connections
 pub(crate) fn list_tcp_udp_windows() -> Result<Vec<ConnectState>, LuminationError> {
     let af_inet = 2;
@@ -23,7 +25,32 @@ pub(crate) fn list_tcp_udp_windows() -> Result<Vec<ConnectState>, LuminationErro
     connections.append(&mut list_udp(&af_inet));
     connections.append(&mut list_udp(&af_inet6));
 
-    Ok(Vec::new())
+    let procs = list_procs()?;
+
+    let mut conns = Vec::new();
+    for proc in procs {
+        for conn in &connections {
+            if proc.pid != conn.pid {
+                continue;
+            }
+
+            let connect = ConnectState {
+                protocol: conn.protocol.clone(),
+                local_address: conn.local_address.clone(),
+                local_port: conn.local_port,
+                remote_address: conn.remote_address.clone(),
+                remote_port: conn.remote_port,
+                state: conn.state.clone(),
+                pid: proc.pid as u64,
+                process_name: proc.name.clone(),
+                //process_path: String::new(),
+            };
+
+            conns.push(connect);
+        }
+    }
+
+    Ok(conns)
 }
 
 #[derive(Debug)]
@@ -62,7 +89,7 @@ fn list_tcp(af_inet: &u32) -> Vec<NetState> {
             table = Vec::with_capacity(size as usize);
             status = GetExtendedTcpTable(
                 Some(table.as_mut_ptr().cast::<c_void>()),
-                &mut (size as u32),
+                &mut size,
                 false,
                 *af_inet,
                 TCP_TABLE_OWNER_PID_ALL,
@@ -80,7 +107,7 @@ fn list_tcp(af_inet: &u32) -> Vec<NetState> {
 
         // Check if IPv4
         if *af_inet == 2 {
-            let table2 = &*(table.as_ptr() as *const MIB_TCPTABLE_OWNER_PID);
+            let table2 = &*(table.as_ptr().cast::<MIB_TCPTABLE_OWNER_PID>());
             let rows = &table2.table[0] as *const MIB_TCPROW_OWNER_PID;
 
             while count < table2.dwNumEntries {
@@ -100,7 +127,7 @@ fn list_tcp(af_inet: &u32) -> Vec<NetState> {
                 count += 1;
             }
         } else {
-            let table2 = &*(table.as_ptr() as *const MIB_TCP6TABLE_OWNER_PID);
+            let table2 = &*(table.as_ptr().cast::<MIB_TCP6TABLE_OWNER_PID>());
             let rows = &table2.table[0] as *const MIB_TCP6ROW_OWNER_PID;
 
             while count < table2.dwNumEntries {
@@ -150,7 +177,7 @@ fn list_udp(af_inet: &u32) -> Vec<NetState> {
             table = Vec::with_capacity(size as usize);
             status = GetExtendedUdpTable(
                 Some(table.as_mut_ptr().cast::<c_void>()),
-                &mut (size as u32),
+                &mut size,
                 false,
                 *af_inet,
                 UDP_TABLE_OWNER_PID,
@@ -168,7 +195,7 @@ fn list_udp(af_inet: &u32) -> Vec<NetState> {
 
         // Check if IPv4
         if *af_inet == 2 {
-            let table2 = &*(table.as_ptr() as *const MIB_UDPTABLE_OWNER_PID);
+            let table2 = &*(table.as_ptr().cast::<MIB_UDPTABLE_OWNER_PID>());
             let rows = &table2.table[0] as *const MIB_UDPROW_OWNER_PID;
 
             while count < table2.dwNumEntries {
@@ -188,7 +215,7 @@ fn list_udp(af_inet: &u32) -> Vec<NetState> {
                 count += 1;
             }
         } else {
-            let table2 = &*(table.as_ptr() as *const MIB_UDP6TABLE_OWNER_PID);
+            let table2 = &*(table.as_ptr().cast::<MIB_UDP6TABLE_OWNER_PID>());
             let rows = &table2.table[0] as *const MIB_UDP6ROW_OWNER_PID;
 
             while count < table2.dwNumEntries {
