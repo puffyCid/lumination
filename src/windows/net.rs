@@ -16,7 +16,7 @@ use windows::Win32::NetworkManagement::IpHelper::{
 use super::proc::list_procs;
 
 /// List all TCP and UDP Windows connections
-pub(crate) fn list_tcp_udp_windows() -> Result<Vec<ConnectState>, LuminationError> {
+pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
     let af_inet = 2;
     let af_inet6 = 23;
 
@@ -261,12 +261,12 @@ fn get_state(state: &u32) -> NetworkState {
 
 #[cfg(test)]
 mod tests {
-    use super::list_tcp_udp_windows;
+    use super::list_tcp_udp;
     use crate::connections::NetworkState;
 
     #[test]
-    fn test_list_tcp_udp_windows() {
-        let status = list_tcp_udp_windows().unwrap();
+    fn test_list_tcp_udp() {
+        let status = list_tcp_udp().unwrap();
         for entry in status {
             assert_ne!(entry.state, NetworkState::Unknown);
         }
