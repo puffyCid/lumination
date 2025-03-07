@@ -1,6 +1,8 @@
 # Lumination
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![codecov](https://img.shields.io/codecov/c/github/puffyCid/lumination?style=for-the-badge)](https://codecov.io/github/puffyCid/lumination)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/puffycid/lumination/audit.yml?label=Audit&style=for-the-badge)
 
 Lumination is a *very* basic library to display network connections. The goal is for it to be a simpler version of `netstat` and to be cross platform.
 
