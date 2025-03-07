@@ -1,7 +1,7 @@
 use lumination::connections::connections;
 
 fn main() {
-    println!("Run with sudo/Admin if you want to see all connections!\n");
+    println!("Run with sudo/admin if you want to see all connections!\n");
     let conns = connections().unwrap();
 
     for conn in conns {
