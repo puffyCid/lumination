@@ -6,7 +6,7 @@ use std::{fs::read_link, path::PathBuf};
 #[derive(Debug)]
 pub(crate) struct ProcInfo {
     pub(crate) socket: String,
-    pub(crate) pid: u64,
+    pub(crate) pid: u32,
     pub(crate) name: String,
     pub(crate) path: String,
 }
