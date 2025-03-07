@@ -41,7 +41,7 @@ pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
                 remote_address: conn.remote_address.clone(),
                 remote_port: conn.remote_port,
                 state: conn.state.clone(),
-                pid: proc.pid as u64,
+                pid: proc.pid,
                 process_name: proc.name.clone(),
                 //process_path: String::new(),
             };

@@ -8,7 +8,7 @@ pub struct ConnectState {
     pub remote_address: String,
     pub remote_port: u16,
     pub state: NetworkState,
-    pub pid: u64,
+    pub pid: u32,
     pub process_name: String,
     //pub process_path: String,
 }
@@ -31,7 +31,7 @@ pub enum NetworkState {
     None,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Protocol {
     Tcp,
     Udp,
@@ -52,6 +52,12 @@ pub fn connections() -> Result<Vec<ConnectState>, LuminationError> {
     #[cfg(target_os = "windows")]
     {
         use crate::windows::net::list_tcp_udp;
+
+        connects = list_tcp_udp()?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use crate::macos::net::list_tcp_udp;
 
         connects = list_tcp_udp()?;
     }

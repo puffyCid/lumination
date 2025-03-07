@@ -1,10 +1,10 @@
-use crate::error::LuminationError;
-use libc::{proc_listpids, proc_name, proc_pidfdinfo, proc_pidinfo, sysctl};
-use log::warn;
-use nom::{
-    bytes::complete::{take, take_until},
-    number::complete::{be_u8, be_u16, be_u32, be_u128, le_u8, le_u32, le_u128},
+use crate::{
+    connections::{ConnectState, Protocol},
+    error::LuminationError,
+    macos::net::get_state,
 };
+use libc::{proc_listpids, proc_name, proc_pidfdinfo, proc_pidinfo};
+use log::warn;
 use std::{
     ffi::{c_char, c_int, c_longlong, c_short, c_uchar, c_uint, c_ushort, c_void},
     mem::{self, MaybeUninit},
@@ -31,8 +31,10 @@ struct CSocketFdInfo {
     pfi: ProcFileinfo,
     psi: SocketInfo,
 }
-pub(crate) fn list_procs() -> Result<Vec<MacosProcs>, LuminationError> {
-    let mut pid_count = 0;
+
+/// Get process listing and network connections using file descriptors
+pub(crate) fn list_procs(conns: &mut Vec<ConnectState>) -> Result<(), LuminationError> {
+    let pid_count;
     let all_pids = 1;
     let typeinfo = 0;
     let buff_size = 0;
@@ -110,18 +112,17 @@ pub(crate) fn list_procs() -> Result<Vec<MacosProcs>, LuminationError> {
             if fd_sockets.is_empty() {
                 continue;
             }
-            // println!("{fd_sockets:?}");
 
             // Finally get socket info
             let socket_flavor = 3;
             let udp = 1;
             let tcp = 2;
+
             for fd in fd_sockets {
                 let mut socket_info: MaybeUninit<CSocketFdInfo> = MaybeUninit::uninit();
 
                 let struct_size =
                     c_int::try_from(mem::size_of::<CSocketFdInfo>()).unwrap_or_default();
-                //println!("buff size: {struct_size}");
 
                 let status = proc_pidfdinfo(
                     pid,
@@ -138,10 +139,23 @@ pub(crate) fn list_procs() -> Result<Vec<MacosProcs>, LuminationError> {
                 if info.psi.soi_kind != tcp && info.psi.soi_kind != udp {
                     continue;
                 }
-                println!("kind: {}", info.psi.soi_kind);
-                println!("proto: {}", info.psi.soi_protocol);
-                println!("{}", info.psi.soi_proto.pri_tcp.tcpsi_ini.insi_lport);
-                //panic!("stop!");
+
+                let mut conn = ConnectState {
+                    protocol: get_protocol(&info.psi.soi_protocol),
+                    local_address: String::new(),
+                    local_port: 0,
+                    remote_address: String::new(),
+                    remote_port: 0,
+                    state: get_state(&(info.psi.soi_proto.pri_tcp.tcpsi_state as u32)),
+                    pid: pid as u32,
+                    process_name: name.clone(),
+                };
+                get_ips(
+                    info.psi.soi_family,
+                    info.psi.soi_proto.pri_tcp.tcpsi_ini,
+                    &mut conn,
+                );
+                conns.push(conn);
             }
 
             let proc = MacosProcs { pid, name };
@@ -149,11 +163,83 @@ pub(crate) fn list_procs() -> Result<Vec<MacosProcs>, LuminationError> {
         }
     }
 
-    Ok(procs)
+    // Go through Process info and update our other network connections from `list_connections`
+    for conn in conns {
+        if !conn.process_name.is_empty() {
+            continue;
+        }
+        for proc in &procs {
+            if conn.pid as i32 != proc.pid {
+                continue;
+            }
+
+            conn.process_name = proc.name.clone();
+        }
+    }
+
+    Ok(())
+}
+
+fn get_ips(family: i32, sock_addr: InSockinfo, conn: &mut ConnectState) {
+    let ipv4 = 2;
+    let ipv6 = 30;
+    if family == ipv4 {
+        #[allow(unsafe_code)]
+        unsafe {
+            let remote_ip = sock_addr.insi_faddr.ina_46.i46a_addr4.s_addr;
+            let ip4 = Ipv4Addr::from_bits(u32::from_be(remote_ip));
+            conn.remote_address = ip4.to_string();
+
+            if sock_addr.insi_fport >= 0 {
+                conn.remote_port = sock_addr.insi_fport as u16;
+            }
+
+            let local_ip = sock_addr.insi_laddr.ina_46.i46a_addr4.s_addr;
+            let ip4 = Ipv4Addr::from_bits(u32::from_be(local_ip));
+            conn.local_address = ip4.to_string();
+
+            if sock_addr.insi_lport >= 0 {
+                conn.local_port = sock_addr.insi_fport as u16;
+            }
+        }
+    } else if family == ipv6 {
+        #[allow(unsafe_code)]
+        unsafe {
+            let remote_ip = sock_addr.insi_faddr.ina_6.__u6_addr.__u6_addr8;
+            if remote_ip.len() < 16 {
+                return;
+            }
+            let ip6 = Ipv6Addr::from_bits(u128::from_be_bytes(remote_ip));
+            conn.remote_address = ip6.to_string();
+
+            if sock_addr.insi_fport >= 0 {
+                conn.remote_port = sock_addr.insi_fport as u16;
+            }
+
+            let local_ip = sock_addr.insi_laddr.ina_6.__u6_addr.__u6_addr8;
+            if local_ip.len() < 16 {
+                return;
+            }
+            let ip6 = Ipv6Addr::from_bits(u128::from_be_bytes(local_ip));
+            conn.local_address = ip6.to_string();
+
+            if sock_addr.insi_lport >= 0 {
+                conn.local_port = sock_addr.insi_fport as u16;
+            }
+        }
+    }
+}
+
+fn get_protocol(proto: &i32) -> Protocol {
+    match proto {
+        6 => Protocol::Tcp,
+        17 => Protocol::Udp,
+        1 => Protocol::Icmp,
+        _ => Protocol::Unknown,
+    }
 }
 
 #[repr(C)]
-
 struct ProcFileinfo {
     fi_openflags: u32,
     fi_status: u32,
@@ -386,146 +472,14 @@ struct KernCtlInfo {
     kcsi_name: [c_char; 96usize],
 }
 
-fn test_connects() {
-    let mut tcp_oid = vec![4, 2, 6, 173];
-    let mut udp_oid = vec![4, 2, 17, 106];
-    #[allow(unsafe_code)]
-    unsafe {
-        let mut val_len = 0;
-        let status = sysctl(
-            tcp_oid.as_mut_ptr(),
-            tcp_oid.len() as u32,
-            std::ptr::null_mut(),
-            &mut val_len,
-            std::ptr::null_mut(),
-            0,
-        );
-
-        let mut val: Vec<libc::c_uchar> = vec![0; val_len];
-        let mut new_val_len = val_len;
-        let status = sysctl(
-            tcp_oid.as_mut_ptr(),
-            tcp_oid.len() as u32,
-            val.as_mut_ptr() as *mut libc::c_void,
-            &mut new_val_len,
-            std::ptr::null_mut(),
-            0,
-        );
-
-        parse_binary_tcp(&val).unwrap();
-    }
-}
-
-/// Parse the xtcpcb_n format
-/// We just grab what we need and leave
-/// This data is obtained from the kernel syscall net.inet.tcp.pcblist_n and net.inet.udp.pcblist_n
-fn parse_binary_tcp(data: &[u8]) -> nom::IResult<&[u8], ()> {
-    // Here be dragons...
-    // References:
-    // https://stackoverflow.com/questions/44474144/convert-uint8-array-to-xinpgen-struct
-    // https://git.imbytecat.com/history-museum/clash/src/commit/02d9169b5d1e45a47f0f0355a32bff045838d621/rules/process_darwin.go
-    // https://newosxbook.com/bonus/vol1ch16.html
-
-    let xpingen_size: u8 = 24;
-    let (mut remaining, _xpingen) = take(xpingen_size)(data)?;
-    let min_size = 616;
-
-    let tcp_length = 104;
-    let tcp = 16;
-    while remaining.len() > min_size {
-        // println!("{remaining:?}");
-
-        let (input, length) = le_u32(remaining)?;
-        // Should always be 104 bytes
-        if length != tcp_length {
-            panic!("hmm");
-            break;
-        }
-
-        let (input, protocol_family) = le_u32(input)?;
-        // Should always be TCP since we use net.inet.tcp.pcblist_n syscall
-        if protocol_family != tcp {
-            panic!("what?");
-            break;
-        }
-
-        let (input, _xi_inpp) = take(size_of::<u64>())(input)?;
-        let (input, remote_port) = be_u16(input)?;
-        let (input, local_port) = be_u16(input)?;
-        let (input, _inp_ppcb) = take(size_of::<u64>())(input)?;
-        let (input, _inp_gencnt) = take(size_of::<u64>())(input)?;
-        let (input, _flags) = take(size_of::<u32>())(input)?;
-        let (input, _flow) = take(size_of::<u32>())(input)?;
-        let (input, ttl) = take(size_of::<u32>())(input)?;
-        let (_, is_ipv4) = le_u8(ttl)?;
-        let padding: u8 = 12;
-        let (input, _padding) = take(padding)(input)?;
-        let (input, remote_ip) = if is_ipv4 == 1 {
-            let (input, remote_ip) = be_u32(input)?;
-            let ip = Ipv4Addr::from_bits(remote_ip).to_string();
-            let (input, _padding) = take(padding)(input)?;
-
-            (input, ip)
-        } else {
-            let ip6_padding: u8 = 4;
-            let (input, _padding) = take(ip6_padding)(input)?;
-
-            let (input, remote_ip) = be_u128(input)?;
-            let ip = Ipv6Addr::from_bits(remote_ip).to_string();
-
-            (input, ip)
-        };
-
-        let (input, src_ip) = if is_ipv4 == 1 {
-            let (input, src_ip) = be_u32(input)?;
-            let ip = Ipv4Addr::from_bits(src_ip).to_string();
-            (input, ip)
-        } else {
-            let ip6_padding: u8 = 4;
-            let (input, _padding) = take(ip6_padding)(input)?;
-
-            let (input, src_ip) = be_u128(input)?;
-            let ip = Ipv6Addr::from_bits(src_ip).to_string();
-            (input, ip)
-        };
-
-        let jump_to_pid: u8 = if is_ipv4 == 1 { 96 } else { 72 };
-        let (input, _unknown) = take(jump_to_pid)(input)?;
-        let (input, pid) = le_u32(input)?;
-        println!("PID: {pid}. Remote: {remote_ip}:{remote_port} - local: {src_ip}:{local_port}");
-
-        // Skipping rest of format
-        let next_section: [u8; 8] = [104, 0, 0, 0, 16, 0, 0, 0];
-        let remaining_bytes: u16 = 436;
-        let input = match scan_protocol(input, next_section.as_slice()) {
-            Ok((result, _)) => result,
-            Err(_err) => break,
-        };
-        remaining = input;
-    }
-    Ok((&[], ()))
-}
-
-fn scan_protocol<'a>(data: &'a [u8], start: &[u8]) -> nom::IResult<&'a [u8], ()> {
-    let (remaining, _) = take_until(start)(data)?;
-    Ok((remaining, ()))
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::macos::proc::test_connects;
-
     use super::list_procs;
 
     #[test]
     fn test_list_procs() {
-        let status = list_procs().unwrap();
-        assert!(status.len() > 3);
-    }
-
-    #[test]
-    fn test_test_connects() {
-        let status = test_connects();
-        //assert!(status.len() > 3);
+        let mut conns = Vec::new();
+        list_procs(&mut conns).unwrap();
+        assert!(conns.len() > 3);
     }
 }

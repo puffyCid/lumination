@@ -53,7 +53,7 @@ pub(crate) fn proc_with_sockets() -> Result<Vec<ProcInfo>, LuminationError> {
 
             let proc = ProcInfo {
                 socket: link.to_str().unwrap_or_default().to_string(),
-                pid: pid.parse::<u64>().unwrap_or_default(),
+                pid: pid.parse::<u32>().unwrap_or_default(),
                 path: name.to_str().unwrap_or_default().to_string(),
                 name: name
                     .file_name()
