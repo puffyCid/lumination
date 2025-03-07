@@ -17,7 +17,7 @@ There is an example file if you want to try the library out:
 
 ```
 sudo ./lumos
-Run with sudo/Admin if you want to see all connections!
+Run with sudo/admin if you want to see all connections!
 
 State: Established - Remote IP: 140.82.113.25:443 - Local IP: 192.168.1.208:49838 - Protocol: Tcp - Process: GitHub Desktop Helper (PID:88075)
 State: Established - Remote IP: 34.107.243.93:443 - Local IP: 192.168.1.208:49806 - Protocol: Tcp - Process: firefox (PID:13891)
