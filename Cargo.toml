@@ -2,6 +2,10 @@
 name = "lumination"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/puffyCid/lumination"
+description = "A very basic library to display network connections"
+keywords = ["forensics"]
 
 [dependencies]
 serde = { version = "1.0.218", features = ["derive"] }
