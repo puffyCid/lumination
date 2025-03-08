@@ -1,6 +1,7 @@
 use crate::error::LuminationError;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectState {
     pub protocol: Protocol,
     pub local_address: String,
@@ -13,7 +14,7 @@ pub struct ConnectState {
     //pub process_path: String,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkState {
     Listen,
     Established,
@@ -31,7 +32,7 @@ pub enum NetworkState {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Protocol {
     Tcp,
     Udp,
