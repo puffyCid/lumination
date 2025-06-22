@@ -130,7 +130,7 @@ fn parse_socket_options<'a>(
 
     let xpingen_size: u8 = 24;
     if data.len() < xpingen_size as usize {
-        return Ok((&[], Vec::new()))
+        return Ok((&[], Vec::new()));
     }
     // Skip header info. We do not need it
     let (mut remaining, _xpingen) = take(xpingen_size)(data)?;
