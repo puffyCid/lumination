@@ -42,7 +42,7 @@ pub enum Protocol {
 
 /// List current network connections on a system
 pub fn connections() -> Result<Vec<ConnectState>, LuminationError> {
-    let connects;
+    let mut connects = Vec::new();
 
     #[cfg(target_os = "linux")]
     {
