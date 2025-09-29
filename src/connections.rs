@@ -63,6 +63,13 @@ pub fn connections() -> Result<Vec<ConnectState>, LuminationError> {
         connects = list_tcp_udp()?;
     }
 
+    #[cfg(target_os = "freebsd")]
+    {
+        use crate::freebsd::net::list_tcp_udp;
+
+        connects = list_tcp_udp()?;
+    }
+
     Ok(connects)
 }
 

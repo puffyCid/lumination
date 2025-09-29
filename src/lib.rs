@@ -74,6 +74,8 @@
 
 pub mod connections;
 mod error;
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
