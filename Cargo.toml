@@ -9,8 +9,8 @@ keywords = ["forensics"]
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
-log = "0.4.28"
-serde_json = "1.0.140"
+log = "0.4.29"
+serde_json = "1.0.147"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", default-features = false, features = [
@@ -24,5 +24,5 @@ glob = "0.3.3"
 nom = "8.0.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-libc = "0.2.177"
+libc = "0.2.178"
 nom = "8.0.0"
