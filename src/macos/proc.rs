@@ -86,7 +86,10 @@ pub(crate) fn list_procs(conns: &mut Vec<ConnectState>) -> Result<(), Lumination
             // Need to call twice
             let fd_buff_size = proc_pidinfo(pid, fd_info, 0, ptr::null_mut(), 0);
             if fd_buff_size <= 0 {
-                warn!("[lumination] Could not determine file descriptor info. Got {fd_buff_size}");
+                event!(
+                    Level::WARN,
+                    "[lumination] Could not determine file descriptor info. Got {fd_buff_size}"
+                );
                 continue;
             }
             let fd_size = 8;
