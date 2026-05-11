@@ -3,7 +3,6 @@ use crate::{
     connections::{ConnectState, NetworkState, Protocol},
     error::LuminationError,
 };
-use log::error;
 use nom::{
     bytes::complete::{is_a, take, take_until},
     error::ErrorKind,
@@ -13,6 +12,7 @@ use std::{
     io::{BufRead, BufReader},
     net::{Ipv4Addr, Ipv6Addr},
 };
+use tracing::{Level, event};
 
 /// List TCP, UDP, and ICMP connections
 pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
@@ -29,7 +29,7 @@ pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
         let mut status = match read_net(path) {
             Ok((_, result)) => result,
             Err(err) => {
-                error!("[lumination] Could not parse {path}: {err:?}");
+                event!(Level::ERROR, "[lumination] Could not parse {path}: {err:?}");
                 return Err(LuminationError::Net);
             }
         };
@@ -67,7 +67,7 @@ fn read_net(path: &str) -> nom::IResult<&str, Vec<NetState>> {
     let file = match File::open(path) {
         Ok(result) => result,
         Err(err) => {
-            error!("[lumination] Failed to open {path}: {err:?}");
+            event!(Level::ERROR, "[lumination] Failed to open {path}: {err:?}");
             return Err(nom::Err::Failure(nom::error::Error::new(
                 "",
                 ErrorKind::Fail,

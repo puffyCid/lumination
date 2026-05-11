@@ -4,12 +4,12 @@ use crate::{
     error::LuminationError,
 };
 use libc::sysctl;
-use log::error;
 use nom::{
     bytes::complete::take,
     number::complete::{be_u16, be_u32, be_u128, le_u8, le_u32},
 };
 use std::net::{Ipv4Addr, Ipv6Addr};
+use tracing::{Level, event};
 
 pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
     // First get connections using sysctl. Which is is a kernel call
@@ -42,7 +42,8 @@ fn list_connections() -> Vec<ConnectState> {
         );
 
         if status != 0 {
-            error!(
+            event!(
+                Level::ERROR,
                 "[lumination] Failed to get tcp socket data size. Wanted status 0, got {status}"
             );
             return conns;
@@ -59,14 +60,20 @@ fn list_connections() -> Vec<ConnectState> {
             0,
         );
         if status != 0 {
-            error!("[lumination] Failed to get tcp socket data. Wanted status 0, got {status}");
+            event!(
+                Level::ERROR,
+                "[lumination] Failed to get tcp socket data. Wanted status 0, got {status}"
+            );
             return conns;
         }
 
         let tcp_conns = match parse_socket_options(&val, &Protocol::Tcp) {
             Ok((_, results)) => results,
             Err(err) => {
-                error!("[lumination] Failed to parse tcp socket data: {err:?}");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Failed to parse tcp socket data: {err:?}"
+                );
                 return conns;
             }
         };
@@ -83,7 +90,8 @@ fn list_connections() -> Vec<ConnectState> {
         );
 
         if status != 0 {
-            error!(
+            event!(
+                Level::ERROR,
                 "[lumination] Failed to get udp socket data size. Wanted status 0, got {status}"
             );
             return conns;
@@ -101,14 +109,20 @@ fn list_connections() -> Vec<ConnectState> {
         );
 
         if status != 0 {
-            error!("[lumination] Failed to get udp socket data. Wanted status 0, got {status}");
+            event!(
+                Level::ERROR,
+                "[lumination] Failed to get udp socket data. Wanted status 0, got {status}"
+            );
             return conns;
         }
 
         let mut udp_conns = match parse_socket_options(&val, &Protocol::Udp) {
             Ok((_, results)) => results,
             Err(err) => {
-                error!("[lumination] Failed to parse udp socket data: {err:?}");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Failed to parse udp socket data: {err:?}"
+                );
                 return conns;
             }
         };

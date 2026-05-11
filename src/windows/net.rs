@@ -2,11 +2,11 @@ use crate::{
     connections::{ConnectState, NetworkState, Protocol},
     error::LuminationError,
 };
-use log::error;
 use std::{
     ffi::c_void,
     net::{Ipv4Addr, Ipv6Addr},
 };
+use tracing::{Level, event};
 use windows::Win32::NetworkManagement::IpHelper::{
     GetExtendedTcpTable, GetExtendedUdpTable, MIB_TCP6ROW_OWNER_PID, MIB_TCP6TABLE_OWNER_PID,
     MIB_TCPROW_OWNER_PID, MIB_TCPTABLE_OWNER_PID, MIB_UDP6ROW_OWNER_PID, MIB_UDP6TABLE_OWNER_PID,
@@ -99,7 +99,10 @@ fn list_tcp(af_inet: &u32) -> Vec<NetState> {
             count += 1;
             // Should only take two calls. But just incase we set limit
             if count > limit {
-                error!("[lumination] Failed to allocate buffer. Return zero connections");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Failed to allocate buffer. Return zero connections"
+                );
                 return net;
             }
         }
@@ -187,7 +190,10 @@ fn list_udp(af_inet: &u32) -> Vec<NetState> {
             count += 1;
             // Should only take two calls. But just incase we set limit
             if count > limit {
-                error!("[lumination] Failed to allocate buffer. Return zero connections");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Failed to allocate buffer. Return zero connections"
+                );
                 return net;
             }
         }

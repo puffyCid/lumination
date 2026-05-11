@@ -4,13 +4,13 @@ use crate::{
     macos::net::get_state,
 };
 use libc::{proc_listpids, proc_name, proc_pidfdinfo, proc_pidinfo};
-use log::warn;
 use std::{
     ffi::{c_char, c_int, c_longlong, c_short, c_uchar, c_uint, c_ushort, c_void},
     mem::{self, MaybeUninit},
     net::{Ipv4Addr, Ipv6Addr},
     ptr,
 };
+use tracing::{Level, event};
 
 #[derive(Debug)]
 pub(crate) struct MacosProcs {
@@ -46,7 +46,10 @@ pub(crate) fn list_procs(conns: &mut Vec<ConnectState>) -> Result<(), Lumination
         pid_count = proc_listpids(all_pids, typeinfo, ptr::null_mut(), buff_size);
 
         if pid_count <= 0 {
-            warn!("[lumination] Could not determine pid count. Got {pid_count}");
+            event!(
+                Level::WARN,
+                "[lumination] Could not determine pid count. Got {pid_count}"
+            );
             return Err(LuminationError::Procs);
         }
 
@@ -83,7 +86,10 @@ pub(crate) fn list_procs(conns: &mut Vec<ConnectState>) -> Result<(), Lumination
             // Need to call twice
             let fd_buff_size = proc_pidinfo(pid, fd_info, 0, ptr::null_mut(), 0);
             if fd_buff_size <= 0 {
-                warn!("[lumination] Could not determine file descriptor info. Got {fd_buff_size}");
+                event!(
+                    Level::WARN,
+                    "[lumination] Could not determine file descriptor info. Got {fd_buff_size}"
+                );
                 continue;
             }
             let fd_size = 8;
