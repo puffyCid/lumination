@@ -4,12 +4,12 @@ use crate::{
     error::LuminationError,
 };
 use libc::sysctl;
-use log::error;
 use nom::{
     bytes::complete::take,
     number::complete::{be_u16, be_u32, be_u128, le_u8, le_u32},
 };
 use std::net::{Ipv4Addr, Ipv6Addr};
+use tracing::{Level, event};
 
 pub(crate) fn list_tcp_udp() -> Result<Vec<ConnectState>, LuminationError> {
     // First get connections using sysctl. Which is is a kernel call
@@ -42,7 +42,8 @@ fn list_connections() -> Vec<ConnectState> {
         );
 
         if status != 0 {
-            error!(
+            event!(
+                Level::ERROR,
                 "[lumination] Failed to get tcp socket data size. Wanted status 0, got {status}"
             );
             return conns;

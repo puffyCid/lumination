@@ -1,6 +1,6 @@
 use crate::error::LuminationError;
-use log::error;
 use std::mem::zeroed;
+use tracing::{Level, event};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
@@ -19,7 +19,10 @@ pub(crate) fn list_procs() -> Result<Vec<WindowsProcs>, LuminationError> {
         let handle = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
             Ok(result) => result,
             Err(err) => {
-                error!("[lumination] Could not get handle to snapshot: {err:?}");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Could not get handle to snapshot: {err:?}"
+                );
                 return Err(LuminationError::Procs);
             }
         };
@@ -28,7 +31,10 @@ pub(crate) fn list_procs() -> Result<Vec<WindowsProcs>, LuminationError> {
         process.dwSize = match u32::try_from(size_of::<PROCESSENTRY32W>()) {
             Ok(result) => result,
             Err(err) => {
-                error!("[lumination] Could not get size of process entry: {err:?}");
+                event!(
+                    Level::ERROR,
+                    "[lumination] Could not get size of process entry: {err:?}"
+                );
                 return Err(LuminationError::Procs);
             }
         };

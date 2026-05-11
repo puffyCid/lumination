@@ -1,7 +1,7 @@
 use crate::error::LuminationError;
 use glob::glob;
-use log::error;
 use std::{fs::read_link, path::PathBuf};
+use tracing::{Level, event};
 
 #[derive(Debug)]
 pub(crate) struct ProcInfo {
@@ -17,7 +17,10 @@ pub(crate) fn proc_with_sockets() -> Result<Vec<ProcInfo>, LuminationError> {
     let paths = match glob(glob_path) {
         Ok(result) => result,
         Err(err) => {
-            error!("[lumination] Failed to glob proc ids: {err:?}");
+            event!(
+                Level::ERROR,
+                "[lumination] Failed to glob proc ids: {err:?}"
+            );
             return Err(LuminationError::Procs);
         }
     };
